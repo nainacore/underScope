@@ -1,0 +1,87 @@
+{
+  "theme": "Light mode primary (Institutional Luxe / Swiss Brutalist). High-contrast, paper-like feel. Backgrounds should be stark white or very light grey (slate-50) to make dense data pop without eye strain.",
+  "typography": {
+    "headings": {
+      "family": "Cormorant Garamond, Playfair Display, or Merriweather. (Premium, authoritative, editorial feel). DO NOT use Inter or generic sans for H1/H2.",
+      "sizes": "H1: text-3xl to text-4xl (Keep it restrained, not a marketing page), H2: text-2xl, H3: text-xl.",
+      "tracking": "tracking-tight for headings"
+    },
+    "body": {
+      "family": "IBM Plex Sans, Manrope, or Inter (Clean, legible, modern UI sans).",
+      "sizes": "text-sm to text-base. Use text-xs for dense tables."
+    },
+    "data_numbers": {
+      "family": "JetBrains Mono, IBM Plex Mono, or Roboto Mono (CRITICAL for financial data alignment).",
+      "features": "tabular-nums slashed-zero (Ensure numbers align perfectly in columns)."
+    }
+  },
+  "colors": {
+    "base": {
+      "background": "#F8FAFC (slate-50) for canvas, #FFFFFF (white) for cards, data blocks, and active elements.",
+      "text": "#0F172A (slate-900) for primary text, #475569 (slate-600) for secondary."
+    },
+    "accents": {
+      "brand": "#0F172A (Deep Slate/Obsidian). Avoid bright 'SaaS Blue' for primary brand.",
+      "positive_signal": "#15803D (green-700) with background #F0FDF4 (green-50).",
+      "negative_signal": "#B91C1C (red-700) with background #FEF2F2 (red-50)."
+    },
+    "semantic_investigation_badges": {
+      "fact_verified": "bg-slate-100 text-slate-700 border border-slate-200 (Objective, grounded)",
+      "reported_event": "bg-blue-50 text-blue-700 border border-blue-200 (Informational)",
+      "ai_interpretation": "bg-purple-50 text-purple-700 border border-purple-200 (Distinct from facts, shows AI synthesis)",
+      "scenario_assumption": "bg-amber-50 text-amber-700 border border-amber-200 (Hypothetical, warning-adjacent)"
+    }
+  },
+  "visual_enhancers": {
+    "borders": "1px solid borders (border-slate-200). Use the 'Grid Borders' strategy: expose the skeleton. Avoid soft drop shadows; rely on crisp borders for definition.",
+    "shadows": "Minimal. Use shadow-sm for floating menus/dropdowns, but main structural cards should be flat with 1px borders.",
+    "glassmorphism": "BANNED for this context. Use flat solid surfaces. Glassmorphism reduces data legibility in high-density professional apps."
+  },
+  "components": {
+    "underscope_investigation_card": "Signature feature. Must explicitly separate intelligence layers. Include: 1. Semantic type badge (Fact/AI/Scenario). 2. 'Finding' (strong heading). 3. 'Why it matters' (muted text). 4. 'Evidence/Source' (monospace footprint). 5. 'Confidence Score' (progress bar or text label).",
+    "tables": "Left-align text, Right-align numeric columns. Use tabular-nums strictly. Enforce a tight vertical rhythm.",
+    "buttons": "Slightly rounded (rounded-md) or crisp rectangular. High contrast. Primary: bg-slate-900 text-white. Secondary: bg-white text-slate-900 border border-slate-200.",
+    "scenario_sliders": "Use standard Shadcn UI slider but restyle the thumb to be sharp. Keep value labels clear and monospace."
+  },
+  "grids_layouts": {
+    "dashboard_grid": "High Density Grid (Mode B). grid-cols-1 md:grid-cols-4 lg:grid-cols-12 with tight gaps (gap-4 or gap-6).",
+    "sidebar": "Fixed left sidebar navigation. Width 240px or 280px. Stark border-r, minimalist un-nested links.",
+    "spacing": "Strict 4px/8px rhythm. Padding in cards: p-4 or p-6."
+  },
+  "motion": {
+    "rules": "Restrained, professional. No bouncy animations or excessive parallax.",
+    "hover_states": "Cards subtly shift border color to slate-400. Rows in tables get a subtle bg-slate-50 highlight. Fast transitions (duration-150 ease-in-out)."
+  },
+  "accessibility": {
+    "contrast": "Strict WCAG AA for all text. Never use text-slate-300 or text-slate-400 on white backgrounds.",
+    "data_readability": "Never use color alone to convey meaning. Always pair positive/negative colors with + / - signs or ↑ / ↓ arrows.",
+    "testing": "All interactive elements MUST have data-testid attributes (e.g., data-testid='investigation-card-expand', data-testid='watchlist-add')."
+  },
+  "media": {
+    "charts": "Use Recharts (Shadcn Chart). Clean lines, thin strokes. No fill gradients unless necessary for volume. Monospace labels on axes.",
+    "image_urls": {
+      "company_headquarters_1": "https://images.unsplash.com/photo-1783196720583-6dd73808acda?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHw0fHxjb21wYW55JTIwaGVhZHF1YXJ0ZXJzJTIwYnVpbGRpbmclMjBleHRlcmlvcnxlbnwwfHx8fDE3ODc1MDMyODl8MA&ixlib=rb-4.1.0&q=85",
+      "company_headquarters_2": "https://images.unsplash.com/photo-1760004811280-f15126cffebc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2MzR8MHwxfHNlYXJjaHwzfHxjb21wYW55JTIwaGVhZHF1YXJ0ZXJzJTIwYnVpbGRpbmclMjBleHRlcmlvcnxlbnwwfHx8fDE3ODc1MDMyODl8MA&ixlib=rb-4.1.0&q=85",
+      "professional_trader": "https://images.pexels.com/photos/5831260/pexels-photo-5831260.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. Setup Shadcn UI components as required (Card, Table, Slider, Tabs, Input, Button, Badge).",
+    "2. Avoid the standard 'Vercel SaaS' look. Make it feel like an authoritative institutional dossier (think traditional terminal meets modern web).",
+    "3. Use Lucide icons (already installed) for clean, minimalist navigation.",
+    "4. Implement browser LocalStorage for the Watchlist feature as requested by the user.",
+    "5. Seed realistic mock data. Avoid 'lorem ipsum'. Use financial terms ('supply chain dependency', 'margin compression', 'undisclosed related party transaction').",
+    "6. Build the contextual AI Research assistant to look like a dedicated panel/sidebar or distinct command interface, avoiding 'chat bubble' clichés.",
+    "7. DO NOT apply global `transition: all` in CSS. Only transition specific properties.",
+    "8. Strictly use tabular-nums (e.g. tracking-tighter tabular-nums) for all numerical financial data.",
+    "9. The Dependency Map can be a simple visual node representation or indented tree list for v1, provided it clearly outlines relationships."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid the 'AI slop' aesthetic. Create depth with borders and structured typography instead of muddy shadows.",
+    "Never center align the app container. Respect the natural left-to-right reading flow.",
+    "Add transitions for specific interactive elements (button, input), excluding transforms.",
+    "Do not use AI assistant Emoji characters (🤖🧠💭💡) as icons. Rely on clean SVG icons (Lucide).",
+    "Ensure 2-3x more spacing for layouts where possible, though table rows can be dense.",
+    "Missing images will result in using placeholder text which is FORBIDDEN. Always use the provided media URLs."
+  ]
+}

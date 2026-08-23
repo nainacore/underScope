@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts: editorial serif for headings + clean sans for body + monospace for numbers */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+@layer base {
+    :root {
+        --background: 210 20% 98%;
+        --foreground: 222 47% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        --primary: 222 47% 11%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 210 20% 96%;
+        --secondary-foreground: 222 47% 11%;
+        --muted: 210 20% 96%;
+        --muted-foreground: 215 16% 40%;
+        --accent: 210 20% 94%;
+        --accent-foreground: 222 47% 11%;
+        --destructive: 0 74% 42%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 214 20% 90%;
+        --input: 214 20% 90%;
+        --ring: 222 47% 11%;
+        --radius: 0.375rem;
+    }
+}
+
+html,
+body,
+#root {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    min-height: 100vh;
+}
+
+body {
+    margin: 0;
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings:
+        "cv02" 1,
+        "cv03" 1,
+        "cv04" 1,
+        "cv11" 1;
+    letter-spacing: -0.005em;
+}
+
+.font-editorial {
+    font-family: "Fraunces", "Cormorant Garamond", ui-serif, Georgia, serif;
+    font-variation-settings: "opsz" 96;
+    letter-spacing: -0.02em;
+}
+
+.font-mono-num {
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums slashed-zero;
+    letter-spacing: -0.01em;
+}
+
+.tabular {
+    font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Subtle horizontal & vertical grid rhythm helpers */
+.us-grid {
+    background-image: linear-gradient(
+        to right,
+        hsl(var(--border)) 1px,
+        transparent 1px
+    );
+    background-size: 1px 100%;
+}
+
+/* Focus / hover polish */
+button,
+a {
+    transition:
+        color 150ms ease,
+        background-color 150ms ease,
+        border-color 150ms ease;
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* Custom scrollbar to keep the terminal feel */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: hsl(214 20% 88%);
+    border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(215 16% 70%);
+}
+
+/* SSE / markdown assistant appearance */
+.assistant-stream p {
+    margin: 0.4rem 0;
+}
+.assistant-stream h1,
+.assistant-stream h2,
+.assistant-stream h3 {
+    font-family: "Fraunces", ui-serif, Georgia, serif;
+    color: hsl(var(--foreground));
+    margin: 0.7rem 0 0.35rem;
+    letter-spacing: -0.01em;
+}
+.assistant-stream h1 {
+    font-size: 1.05rem;
+}
+.assistant-stream h2 {
+    font-size: 0.98rem;
+}
+.assistant-stream h3 {
+    font-size: 0.92rem;
+}
+.assistant-stream ul,
+.assistant-stream ol {
+    margin: 0.4rem 0;
+    padding-left: 1.1rem;
+}
+.assistant-stream ul {
+    list-style: disc;
+}
+.assistant-stream ol {
+    list-style: decimal;
+}
+.assistant-stream li {
+    margin: 0.15rem 0;
+}
+.assistant-stream code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    background: hsl(210 20% 96%);
+    padding: 0 0.25rem;
+    border-radius: 2px;
+    font-size: 0.85em;
+}
+.assistant-stream strong {
+    color: hsl(var(--foreground));
+    font-weight: 600;
+}
+.assistant-stream blockquote {
+    border-left: 2px solid hsl(var(--border));
+    padding-left: 0.75rem;
+    color: hsl(215 16% 40%);
+    margin: 0.4rem 0;
+}
+.assistant-stream table {
+    border-collapse: collapse;
+    margin: 0.5rem 0;
+    font-size: 0.85em;
+    width: 100%;
+}
+.assistant-stream th,
+.assistant-stream td {
+    border: 1px solid hsl(var(--border));
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+    vertical-align: top;
+}
+.assistant-stream th {
+    background: hsl(210 20% 96%);
+    font-weight: 600;
+}
+.assistant-stream a {
+    color: hsl(var(--foreground));
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}

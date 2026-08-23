@@ -1,0 +1,90 @@
+{
+  "summary": "First full pass on UnderScope (backend + frontend). Backend: 25 pytest cases across companies/market/compare/assistant-SSE — 24 passed, 1 failed exposing a real SSE framing defect. Frontend: Home, 9 sidebar nav routes, global search (click + Ctrl+K), company page (8 tabs, chart, watchlist toggle), Watchlist add/remove, Compare add/remove + min-2 enforcement, Scenario Lab sliders, and AI assistant streaming were all exercised end-to-end. Core journeys work; the AI assistant answer text is corrupted in the UI due to unescaped newlines in SSE data frames.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/assistant/ask",
+        "issue": "SSE frames are emitted as `data: {ev.content}` without escaping newlines. Any delta containing \\n or \\n\\n breaks the frame: content after the newline arrives as a line with no `data:` prefix and is silently dropped by the client (also creates spurious frame boundaries). Verified with test_assistant_multiline_integrity (2 orphan frames of 11) AND visually in the UI: NVDA answer rendered as '## Biggest Structural Dependencies — Ranked by CriticalityL) — FACT, highest near-term chokepoint**ifically for Blackwell's...' i.e. words/lines lost and all markdown structure flattened. Fix: JSON-encode the payload, e.g. `yield 'data: ' + json.dumps({'t': ev.content}) + '\\n\\n'` and JSON.parse in streamAssistant (src/lib/api.js), or escape \\n -> \\\\n on send and unescape on receive.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/assistant/ask",
+        "issue": "No timeout/ownership guard on the LLM stream and no persistence of Q&A; also `logger` is referenced inside event_gen but defined at module bottom (works, but fragile ordering)."
+      },
+      {
+        "endpoint": "GET /api/companies/{ticker}/news|events",
+        "issue": "Unknown ticker returns 200 with empty items instead of 404 (inconsistent with /companies/{ticker} and /price-history which 404)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AssistantPanel",
+        "issue": "Assistant answers display corrupted/incomplete text (root cause = backend SSE newline framing above). Additionally the raw markdown (##, **) is rendered as plain text with whitespace-pre-wrap — no markdown renderer, so even correct output looks unpolished.",
+        "selector": "[data-testid=\"assistant-panel\"] .assistant-stream",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Layout topbar",
+        "issue": "'Ask Analyst' global button is `hidden md:inline-flex`, so on mobile (390px) there is no way to open the assistant outside a company page.",
+        "selector": "[data-testid=\"open-assistant\"]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Compare picker",
+        "issue": "React console error on /compare: 'In HTML, <span> cannot be a child of <option> ... will cause a hydration error' from the native <select>/<option> in Compare.jsx (~line 76-80). Functionally works but pollutes console.",
+        "selector": "[data-testid=\"compare-picker\"]",
+        "priority": "LOW"
+      },
+      {
+        "component": "Discover page",
+        "issue": "Discover.jsx simply re-renders Home (`return <Home />`) — nav item is a duplicate view with no discover-specific filtering/sector browse.",
+        "selector": "[data-testid=\"nav-discover\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "AI Assistant streaming (Ask Analyst -> suggestion -> stream)",
+        "issue": "Streaming works and tokens arrive progressively (length samples 1->58->330->...->2819, done event received, no error marker), but aggregated text is lossy/mangled because of the SSE framing defect. Follow-up question via textarea + Ask also streamed correctly (617 chars).",
+        "affected_selectors": ["[data-testid=\"ask-analyst\"]", "[data-testid=\"assistant-suggestion-0\"]", "[data-testid=\"assistant-send\"]", ".assistant-stream"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Company page / Dependencies tab",
+        "issues": ["Nodes were plain <details> with no data-testid (added by tester). Label says 'Click a node to inspect the relationship' but nodes look non-interactive (no cursor/affordance beyond the arrow)."]
+      },
+      {
+        "screen": "Watchlist (empty state) / Settings / Scenario Lab",
+        "issues": ["Large empty right/bottom area — pages feel sparse at 1920px; Scenario Lab affected-companies panel shows only one card until sliders move."]
+      }
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "CRITICAL: Fix SSE data framing in /api/assistant/ask — JSON-encode each delta (json.dumps) and decode in streamAssistant; currently answer text is lost whenever the model emits newlines.",
+    "Render assistant output as markdown (e.g. react-markdown) instead of raw pre-wrap text.",
+    "Make 'Ask Analyst' reachable on mobile viewports.",
+    "Give Discover its own view (sector/filter/theme browse) instead of re-rendering Home.",
+    "Fix <option> child DOM-nesting React error on /compare.",
+    "Return 404 for unknown tickers on /news and /events for consistency."
+  ],
+  "critical_code_review_comments": [
+    "server.py:252 — `yield f\"data: {ev.content}\\n\\n\"` is not SSE-safe; deltas containing \\n corrupt the stream. Must serialize.",
+    "server.py — assistant Q&A is never persisted to Mongo despite an active motor client; DB is effectively unused (fine for demo, but dead dependency).",
+    "Company.jsx is 392 lines with 8 tab components inline; consider splitting per-tab components into files as it grows.",
+    "AssistantPanel: onError overwrites the whole streamed message with the error text, discarding partial content already received."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py", "/app/frontend/src/pages/Company.jsx (added data-testid to dependency nodes only)"],
+  "success_rate": {"backend": "96% (24/25)", "frontend": "88%"},
+  "seed_data_creation": "None — app is public/demo data only. LocalStorage watchlist entries created and cleaned up during testing.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "N/A — app is public, no auth. /app/memory/test_credentials.md not required.",
+  "context_for_next_testing_agent": "Backend suite lives at /app/backend/tests/backend_test.py (pytest, uses REACT_APP_BACKEND_URL from /app/frontend/.env). test_assistant_multiline_integrity is the regression test for the SSE newline bug — it must pass after the fix, and also re-verify in UI that the NVDA answer keeps its markdown line breaks. Verified working: all /api/companies/* endpoints for all 24 tickers, market overview/trending/signals, compare 2-4 with 400/404/422 edge cases, 9 nav routes, global search + Ctrl+K, 8 company tabs, watchlist add/remove via LocalStorage, compare add/remove with min-2 disabled button, scenario lab + company scenario sliders recomputing impact, dependency accordion expansion, footer disclaimer, no mobile horizontal overflow.",
+  "rca_of_the_issue": "Root cause of the assistant text corruption: FastAPI handler streams raw model deltas into the SSE `data:` field without escaping. SSE treats \\n as a field separator and \\n\\n as an event terminator, so any newline inside a delta splits the frame; the frontend parser in src/lib/api.js only accumulates lines prefixed with `data:`, so the remainder is discarded. Reproduce: curl -N POST /api/assistant/ask with a question that elicits bullet lists, then split the raw body on \\n\\n — frames without a data:/event: prefix are the lost text."
+}

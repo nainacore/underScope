@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 2 re-verification of UnderScope. Backend: rewrote assistant SSE tests to client-identical JSON-frame parsing plus byte-integrity check; added 404 consistency tests for /news, /events, /dependencies. 27/28 pytest cases pass (only new /dependencies 404-consistency test fails). CRITICAL SSE framing defect from iteration 1 is FIXED: every frame is now `data: {\"t\": \"...\"}`, zero orphan frames, newlines survive, aggregated length == sum of JSON payload lengths. Frontend: assistant answers now render as real markdown (h2/strong/ul/li/p) with no raw '##'/'**' leakage and no text loss; mobile (390x844) topbar shows 'Ask' and opens the panel; /discover is its own view and the sector <select> correctly filters 24 -> filtered cards; full journey Home -> Companies -> /company/NVDA -> all 8 tabs -> Watchlist add -> Compare add/remove -> Scenario Lab sliders -> grounded AI streaming all pass with no console errors (except one pre-existing tooling warning on /compare).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/companies/{ticker}/dependencies", "issue": "Unknown ticker returns 200 with {\"dependency_map\": {\"center\": \"ZZZZ\", \"nodes\": []}} instead of 404. /news and /events were fixed this iteration; /dependencies is now the only inconsistent one (test_dependencies_404_unknown_ticker fails)."},
+      {"endpoint": "POST /api/assistant/ask", "issue": "Still no per-request timeout guard on the LLM stream and Q&A is never persisted to Mongo (motor client effectively unused)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Layout topbar 'Ask Analyst'", "issue": "Topbar button always calls setAssistantCtx({}), so on /company/NVDA it opens an UNGROUNDED assistant ('Ask a research question'); the model replies 'I don't have a specific company loaded'. Should inherit the ticker when on a company route (the in-page [data-testid=ask-analyst] correctly grounds it).", "selector": "[data-testid=\"open-assistant\"]", "priority": "MEDIUM"},
+      {"component": "AssistantPanel markdown container", "issue": "Container keeps `whitespace-pre-wrap` while now rendering block-level markdown, so paragraph/list gaps are doubled (visible 3-4 blank-line gaps between blocks). Remove whitespace-pre-wrap from .assistant-stream when markdown is rendered.", "selector": "[data-testid=\"assistant-panel\"] .assistant-stream", "priority": "LOW"},
+      {"component": "AssistantPanel markdown", "issue": "react-markdown is used without remark-gfm, so GFM tables the model emits render as literal pipe text ('| Category | Examples |', '|---|---|'). Add remark-gfm.", "selector": ".assistant-stream", "priority": "LOW"},
+      {"component": "Compare picker", "issue": "Pre-existing React console error persists: '<span> cannot be a child of <option>' (visual-editing wrapper injected into the dynamic expression inside <option> at Compare.jsx:79). Functionality unaffected.", "selector": "[data-testid=\"compare-picker\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Assistant panel", "issues": ["Excessive vertical whitespace between markdown blocks (pre-wrap + block markdown)", "No visual distinction/badges for FACT / REPORTED EVENT / AI INTERPRETATION labels the model emits inline"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results_iter2.xml"],
+  "action_items": [
+    "Return 404 for unknown tickers on /api/companies/{ticker}/dependencies (last inconsistent endpoint).",
+    "Make the topbar Ask Analyst inherit the current company context when on /company/:ticker.",
+    "Drop whitespace-pre-wrap on the markdown-rendered assistant text and add remark-gfm for tables.",
+    "Optional: silence the <option> child DOM-nesting console error on /compare (use a Select component)."
+  ],
+  "critical_code_review_comments": [
+    "SSE framing fix verified correct: server.py json.dumps({'t': ...}) + api.js JSON.parse with legacy fallback — byte-for-byte integrity confirmed by test_assistant_multiline_integrity.",
+    "AssistantPanel now preserves partial text on error (fixed).",
+    "Company.jsx is still ~392 lines with 8 inline tab components; consider splitting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (JSON-aware SSE parsing + integrity assertions, 404 consistency tests)",
+    "/app/frontend/src/pages/Discover.jsx (added data-testid=discover-sector-card-{ticker} to sector grid cards)"
+  ],
+  "success_rate": {"backend": "96% (27/28)", "frontend": "95%"},
+  "seed_data_creation": "None — public demo data. LocalStorage watchlist entry for NVDA created during testing.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "N/A — app is public, no auth.",
+  "context_for_next_testing_agent": "Backend suite: /app/backend/tests/backend_test.py (28 tests). _read_sse() helper parses SSE exactly like src/lib/api.js and asserts each data frame is {'t': str}; test_assistant_multiline_integrity is the SSE regression guard (now passing). Only failing test: test_dependencies_404_unknown_ticker. Frontend verified this iteration: /discover themes + sector filter, mobile Ask button, grounded vs ungrounded assistant, markdown rendering, 8 company tabs, watchlist, compare add/remove, scenario sliders. Remaining known cosmetic items: assistant whitespace, missing remark-gfm, <option> console warning.",
+  "rca_of_the_issue": "Iteration-1 CRITICAL (assistant text loss) root cause was raw newlines in SSE data fields; fix (json.dumps per delta + JSON.parse client-side) verified end-to-end — 0 orphan frames and aggregated UI text matches SSE payload. Remaining /dependencies 200-on-unknown-ticker is because the handler builds a default empty dependency_map instead of validating the ticker against the company registry first."
+}
