@@ -546,29 +546,190 @@ NEWS = {
 
 
 def dependency_map(ticker: str):
+    """Rich dependency map: center + typed nodes with relationship, impact, confidence, evidence."""
     presets = {
-        "NVDA": {"nodes": ["TSMC (foundry)", "CoWoS-L packaging", "HBM (SK Hynix/Micron)", "Hyperscalers (AWS/Azure/GCP/Meta)", "Sovereign AI programs", "Export-control regime", "Power grid capacity", "CUDA ecosystem"],
-                  "narratives": ["Foundry access via TSMC advanced nodes", "Advanced packaging capacity gates shipments", "HBM supply is a second-order gate", "Top customers concentrate revenue", "Regulatory changes affect country mix", "Grid/power becomes 2026 constraint", "CUDA lock-in vs custom silicon"]},
-        "AAPL": {"nodes": ["Foxconn/Pegatron assembly", "TSMC (A-series/M-series)", "China consumer demand", "EU DMA regime", "App developers (Services)", "Carrier subsidies", "USD/JPY, USD/CNY"],
-                  "narratives": ["Concentrated assembly footprint", "Silicon supply", "Regional demand cycles", "Take-rate regulation", "Services flywheel", "Distribution economics", "FX translation"]},
-        "RELIANCE": {"nodes": ["Crude oil (Brent/Dubai)", "Refining margins (GRM)", "Jio subscribers", "Retail footprint", "Reliance New Energy capex", "AGM commentary", "USD/INR", "Regulatory approvals for listings"],
-                      "narratives": ["Feedstock cost cycle", "Cracks and spreads", "Subscriber momentum", "Consumer store growth", "Long-cycle capex", "Strategic messaging", "FX for O2C", "Value crystallisation timing"]},
-        "TSLA": {"nodes": ["Battery cell suppliers", "Lithium/nickel prices", "China demand", "FSD/Robotaxi timeline", "Regulators (NHTSA)", "Manufacturing capacity", "Charging network"],
-                  "narratives": ["Cell supply drives cost curve", "Commodities feed BOM", "China share dynamics", "Autonomy is the optionality", "Regulatory acceptance of autonomy", "Utilisation drives margin", "Ecosystem lock-in"]},
+        "NVDA": [
+            {"label": "TSMC", "kind": "supplier", "relationship": "Sole foundry for leading-edge GPU nodes (4N, N3)", "impact": "Any Taiwan/TSMC disruption or allocation shift directly gates shipments.", "confidence": 95, "evidence": "NVDA 10-K risk factors; TSMC N3 capacity commentary."},
+            {"label": "CoWoS-L Packaging", "kind": "supplier", "relationship": "Advanced packaging capacity bottleneck for Blackwell", "impact": "Shipments are gated by CoWoS-L, not silicon.", "confidence": 92, "evidence": "TSMC advanced-packaging capex guidance; NVDA supply commentary."},
+            {"label": "HBM (SK Hynix / Micron)", "kind": "supplier", "relationship": "High-bandwidth memory suppliers for AI accelerators", "impact": "Second-order supply gate; HBM3E allocation shapes shipment mix.", "confidence": 82, "evidence": "SK Hynix / Micron earnings commentary."},
+            {"label": "Hyperscalers", "kind": "customer", "relationship": "Top-4 buyers concentrate ~40% of DC revenue", "impact": "Customer capex slippage can reset quarterly guidance.", "confidence": 90, "evidence": "10-K risk factors; sell-side attribution."},
+            {"label": "Sovereign AI Programs", "kind": "customer", "relationship": "Emerging non-hyperscaler demand cohort", "impact": "Diversifies demand but decision cycles are longer.", "confidence": 62, "evidence": "Management commentary on sovereign AI opportunities."},
+            {"label": "US Export Controls", "kind": "regulation", "relationship": "Tiered country access for advanced accelerators", "impact": "Shapes country revenue mix; incremental compliance overhead.", "confidence": 88, "evidence": "US Commerce Department framework updates."},
+            {"label": "Power Grid Capacity", "kind": "macro", "relationship": "Datacenter power availability", "impact": "Now the binding constraint on hyperscaler AI capex deployment.", "confidence": 78, "evidence": "Hyperscaler CFO commentary."},
+            {"label": "CUDA Ecosystem", "kind": "moat", "relationship": "Developer + library lock-in", "impact": "Defends training workloads; less durable for inference vs custom silicon.", "confidence": 84, "evidence": "Developer surveys; hyperscaler custom-silicon roadmaps."},
+            {"label": "AMD / Custom Silicon", "kind": "competitor", "relationship": "Trainium / TPU / MAIA competitive pressure", "impact": "Compresses inference share first; long-term training moat pressured.", "confidence": 72, "evidence": "AWS re:Invent; Google Cloud Next disclosures."},
+        ],
+        "AAPL": [
+            {"label": "Foxconn / Pegatron", "kind": "supplier", "relationship": "Assembly partners concentrated in China / India / Vietnam", "impact": "Geopolitical and labour risk to iPhone unit ramp.", "confidence": 92, "evidence": "AAPL supplier disclosure list."},
+            {"label": "TSMC (A / M silicon)", "kind": "supplier", "relationship": "Sole advanced-node silicon supplier", "impact": "Silicon supply gates product refresh cadence.", "confidence": 94, "evidence": "TSMC / AAPL commentary."},
+            {"label": "Greater China Consumers", "kind": "customer", "relationship": "~17% of revenue and second-largest region", "impact": "Prolonged China weakness alters replacement-cycle math.", "confidence": 86, "evidence": "AAPL segment disclosures; Counterpoint / IDC."},
+            {"label": "App Developers", "kind": "customer", "relationship": "Services flywheel and App Store take-rate", "impact": "Regulation on take-rate flows to Services margin.", "confidence": 84, "evidence": "AAPL Services disclosures."},
+            {"label": "EU DMA / India DCB", "kind": "regulation", "relationship": "Digital-markets regulation targeting App Store fees", "impact": "Direct compression risk on Services gross margin.", "confidence": 82, "evidence": "EU DMA texts; MeitY DCB drafts."},
+            {"label": "USD FX", "kind": "macro", "relationship": "USD/JPY, USD/CNY translation exposure", "impact": "Mechanical drag/tailwind on reported revenue.", "confidence": 75, "evidence": "AAPL 10-Q FX disclosures."},
+            {"label": "Samsung / Chinese OEMs", "kind": "competitor", "relationship": "Premium-smartphone competition + platform alternatives", "impact": "Unit share and ASP pressure in select regions.", "confidence": 68, "evidence": "Counterpoint / IDC data."},
+        ],
+        "RELIANCE": [
+            {"label": "Crude Oil", "kind": "commodity", "relationship": "Feedstock for O2C segment", "impact": "Cracks and spreads drive O2C EBITDA cycle.", "confidence": 90, "evidence": "RIL segment disclosure."},
+            {"label": "Refining Margins (GRM)", "kind": "macro", "relationship": "Benchmark Singapore GRM tracks O2C realisations", "impact": "GRM swings directly translate to segment EBITDA.", "confidence": 88, "evidence": "Reuters GRM benchmark."},
+            {"label": "Jio Subscribers", "kind": "customer", "relationship": "479mn subscriber base", "impact": "Subscriber plateau shifts value driver to ARPU repricing.", "confidence": 92, "evidence": "TRAI monthly data; Jio releases."},
+            {"label": "Reliance Retail", "kind": "customer", "relationship": "India's largest organised retailer", "impact": "LFL growth and store additions drive Retail EBITDA.", "confidence": 86, "evidence": "RIL Retail disclosures."},
+            {"label": "New Energy Capex", "kind": "capex", "relationship": "Multi-year Jamnagar giga complex build-out", "impact": "Long-cycle payback stretches balance-sheet capacity.", "confidence": 75, "evidence": "AGM presentations; annual reports."},
+            {"label": "USD/INR", "kind": "macro", "relationship": "FX for O2C realisations and imports", "impact": "Rupee weakness supports export realisations, hurts imports.", "confidence": 78, "evidence": "RBI FX data."},
+            {"label": "Regulators (SEBI / TRAI)", "kind": "regulation", "relationship": "Listing approvals and telecom pricing", "impact": "Retail/Jio listing timing is regulator-gated.", "confidence": 70, "evidence": "SEBI norms; TRAI tariff orders."},
+            {"label": "Bharti Airtel / Vi", "kind": "competitor", "relationship": "Telecom competition for ARPU repricing", "impact": "Tariff-hike ability depends on peer moves.", "confidence": 74, "evidence": "TRAI ARPU tracking."},
+        ],
+        "TSLA": [
+            {"label": "Battery Cell Suppliers", "kind": "supplier", "relationship": "Panasonic / CATL / LG cell supply", "impact": "Cell cost curve drives auto GM.", "confidence": 88, "evidence": "TSLA supply agreements."},
+            {"label": "Lithium / Nickel", "kind": "commodity", "relationship": "Cell BOM commodities", "impact": "Commodity price swings flow into cost per kWh.", "confidence": 82, "evidence": "USGS / SMM data."},
+            {"label": "China Demand", "kind": "customer", "relationship": "Largest overseas market and export hub", "impact": "Domestic OEMs are compressing Tesla's China share.", "confidence": 84, "evidence": "CPCA monthly data."},
+            {"label": "FSD / Robotaxi Timeline", "kind": "optionality", "relationship": "Autonomy optionality embedded in valuation", "impact": "Timeline slippage compresses SOP valuation.", "confidence": 60, "evidence": "SOP models; management commentary."},
+            {"label": "NHTSA / Regulators", "kind": "regulation", "relationship": "Autonomy and recall exposure", "impact": "Rules govern autonomy roll-out cadence.", "confidence": 72, "evidence": "NHTSA investigations."},
+            {"label": "Charging Network", "kind": "moat", "relationship": "Supercharger network + NACS adoption", "impact": "Cross-OEM revenue and ecosystem lock-in.", "confidence": 78, "evidence": "OEM NACS adoption announcements."},
+            {"label": "BYD / Chinese OEMs", "kind": "competitor", "relationship": "China EV price competition", "impact": "Share loss in Tesla's largest overseas market.", "confidence": 82, "evidence": "CPCA monthly registrations."},
+        ],
+        "HDFCBANK": [
+            {"label": "Depositors", "kind": "customer", "relationship": "Retail + corporate deposit base", "impact": "Deposit growth rate sets LDR normalisation pace.", "confidence": 90, "evidence": "HDFCB quarterly disclosures."},
+            {"label": "RBI", "kind": "regulation", "relationship": "Prudential regulator", "impact": "Risk-weights and PSL norms shape mix.", "confidence": 92, "evidence": "RBI circulars."},
+            {"label": "Interest Rates (Repo)", "kind": "macro", "relationship": "Sets marginal cost of funds", "impact": "Rate-cut cycle affects NIM recovery pace.", "confidence": 84, "evidence": "RBI MPC statements."},
+            {"label": "ICICI / Axis / SBI", "kind": "competitor", "relationship": "Deposit + retail lending competition", "impact": "Peer deposit strategies affect competitive intensity.", "confidence": 76, "evidence": "Peer quarterly disclosures."},
+        ],
+        "TCS": [
+            {"label": "BFSI Clients", "kind": "customer", "relationship": "~32% of revenue from BFSI vertical", "impact": "BFSI discretionary spend cycles set growth trajectory.", "confidence": 88, "evidence": "TCS segment disclosures."},
+            {"label": "USD Revenue", "kind": "macro", "relationship": "~50% of revenue in USD", "impact": "INR strength compresses reported growth.", "confidence": 90, "evidence": "TCS constant-currency reconciliation."},
+            {"label": "GenAI Tools", "kind": "technology", "relationship": "Cloud partner tooling + internal Topaz", "impact": "Productivity deflation on headcount-priced work.", "confidence": 62, "evidence": "Cloud partner consulting revenue trajectory."},
+            {"label": "Infosys / Wipro / Accenture", "kind": "competitor", "relationship": "Direct SI competition", "impact": "Deal-level pricing and win-rates.", "confidence": 74, "evidence": "Peer quarterly disclosures."},
+        ],
     }
     center = next((c for c in COMPANIES if c["ticker"] == ticker), None)
     if not center:
         return {"center": ticker, "nodes": []}
-    preset = presets.get(ticker)
-    if not preset:
-        # generic
-        return {"center": center["name"], "nodes": [
-            {"label": "Key suppliers", "note": "Primary supplier network for the company"},
-            {"label": "Key customers", "note": "Customer concentration and mix"},
-            {"label": "Competitors", "note": "Direct competitive set in " + center["industry"]},
-            {"label": "Regulatory bodies", "note": "Primary regulators for " + center["sector"]},
-            {"label": "Macro factors", "note": "Currency, rates, commodities relevant to " + center["country"]},
-        ]}
-    return {"center": center["name"], "nodes": [
-        {"label": n, "note": preset["narratives"][i] if i < len(preset["narratives"]) else ""} for i, n in enumerate(preset["nodes"])
-    ]}
+    nodes = presets.get(ticker)
+    if not nodes:
+        nodes = [
+            {"label": "Key suppliers", "kind": "supplier", "relationship": "Primary supplier network", "impact": "Supply concentration risk relevant to " + center["industry"], "confidence": 60, "evidence": "Sector reference."},
+            {"label": "Key customers", "kind": "customer", "relationship": "Concentration and mix", "impact": "Customer concentration shapes revenue durability.", "confidence": 60, "evidence": "Sector reference."},
+            {"label": "Competitors", "kind": "competitor", "relationship": "Competitive set in " + center["industry"], "impact": "Pricing and share dynamics.", "confidence": 55, "evidence": "Sector reference."},
+            {"label": "Regulators", "kind": "regulation", "relationship": "Primary regulators for " + center["sector"], "impact": "Regulatory shocks reshape mix.", "confidence": 55, "evidence": "Sector reference."},
+            {"label": "Macro factors", "kind": "macro", "relationship": "Currency, rates, commodities", "impact": "Second-order sensitivity via inputs and demand.", "confidence": 55, "evidence": "Sector reference."},
+        ]
+    return {"center": center["name"], "ticker": center["ticker"], "sector": center["sector"], "nodes": nodes}
+
+
+# ------------------------- Ripple Effects -------------------------
+# Each ripple is a causal tree. `direction` is a human hint (↑ / ↓ / mixed).
+
+RIPPLES = [
+    {
+        "id": "rates-up",
+        "title": "Interest Rates ↑",
+        "shortLabel": "Rates ↑",
+        "kind": "macro",
+        "summary": "Fed / RBI hold or hike further. Cost of capital rises.",
+        "tree": {
+            "label": "Interest rates ↑", "kind": "root", "note": "Higher-for-longer rate regime.",
+            "children": [
+                {"label": "Cost of capital ↑", "kind": "primary", "note": "Discount rates rise across DCF-heavy names.",
+                 "children": [
+                    {"label": "Growth-equity multiples compress", "kind": "market", "note": "AI/software names re-rate on higher discount factor.",
+                     "affects": ["NVDA", "TSLA", "META"]},
+                    {"label": "Enterprise AI RFP cycles elongate", "kind": "market", "note": "Sovereign / enterprise AI decisions get pushed right.",
+                     "affects": ["NVDA"]},
+                 ]},
+                {"label": "Deposit repricing benefits banks", "kind": "primary", "note": "Floating-rate books earn more; unsecured retail pressured.",
+                 "children": [
+                    {"label": "US bank NII improves", "kind": "market", "note": "JPM/GS net interest income supports EPS.",
+                     "affects": ["JPM", "GS"]},
+                    {"label": "Indian unsecured growth moderates", "kind": "market", "note": "RBI risk-weights + rate stack compress unsecured retail.",
+                     "affects": ["HDFCBANK", "ICICIBANK"]},
+                 ]},
+                {"label": "Consumer demand cools", "kind": "primary", "note": "Discretionary purchases delayed; K-shaped divergence widens.",
+                 "children": [
+                    {"label": "Low-income QSR traffic weakens", "kind": "market", "note": "Value-menu resets protect share, compress ticket.",
+                     "affects": ["MCD"]},
+                    {"label": "Auto payments stretch", "kind": "market", "note": "Financing sensitivity dampens unit growth.",
+                     "affects": ["TSLA", "TATAMOTORS"]},
+                 ]},
+            ],
+        },
+    },
+    {
+        "id": "oil-up",
+        "title": "Crude Oil ↑",
+        "shortLabel": "Oil ↑",
+        "kind": "commodity",
+        "summary": "Oil breaks above $90/bbl on supply discipline / geopolitics.",
+        "tree": {
+            "label": "Crude oil ↑", "kind": "root", "note": "Higher energy price regime.",
+            "children": [
+                {"label": "Input costs ↑ for downstream", "kind": "primary", "note": "Fuel + petchem feedstock costs rise.",
+                 "children": [
+                    {"label": "QSR / retailer margin pressure", "kind": "market", "note": "Freight & packaging costs bite.",
+                     "affects": ["MCD", "WMT", "KO"]},
+                    {"label": "Petchem margin squeeze", "kind": "market", "note": "Spreads compress if end-demand doesn't follow.",
+                     "affects": ["RELIANCE"]},
+                 ]},
+                {"label": "Upstream / refiner realisations ↑", "kind": "primary", "note": "O2C cracks widen for integrated players.",
+                 "children": [
+                    {"label": "RIL O2C EBITDA supports mix", "kind": "market", "note": "Better GRMs offset softness elsewhere.",
+                     "affects": ["RELIANCE"]},
+                 ]},
+                {"label": "Airline / logistics costs ↑", "kind": "primary", "note": "Fuel is the largest variable cost.",
+                 "children": [
+                    {"label": "Consumer freight prices rise", "kind": "market", "note": "Filters to CPI headline.", "affects": []},
+                 ]},
+            ],
+        },
+    },
+    {
+        "id": "usdinr-up",
+        "title": "USD/INR ↑",
+        "shortLabel": "USD/INR ↑",
+        "kind": "fx",
+        "summary": "Rupee weakens against the dollar.",
+        "tree": {
+            "label": "USD/INR ↑", "kind": "root", "note": "Weaker rupee.",
+            "children": [
+                {"label": "Indian IT exporters benefit", "kind": "primary", "note": "USD-heavy revenue translates to more INR.",
+                 "children": [
+                    {"label": "Reported revenue tailwind", "kind": "market", "note": "TCS/Infy INR growth optically improves.",
+                     "affects": ["TCS", "INFY"]},
+                    {"label": "Margin cushion widens", "kind": "market", "note": "USD revenue vs INR cost base.", "affects": ["TCS", "INFY"]},
+                 ]},
+                {"label": "Indian importers pressured", "kind": "primary", "note": "USD-denominated imports become costlier.",
+                 "children": [
+                    {"label": "Crude-import bill rises", "kind": "market", "note": "Downstream margin pressure for O2C.", "affects": ["RELIANCE"]},
+                    {"label": "Foreign-debt servicing costs ↑", "kind": "market", "note": "Balance-sheet sensitivity for USD debt.", "affects": []},
+                 ]},
+                {"label": "FII flows sensitivity", "kind": "primary", "note": "Weaker rupee can slow foreign portfolio inflows.",
+                 "children": [
+                    {"label": "Indian large-cap valuation risk", "kind": "market", "note": "Multiples wobble on FII flow reversal.", "affects": ["RELIANCE", "HDFCBANK", "ICICIBANK"]},
+                 ]},
+            ],
+        },
+    },
+    {
+        "id": "aicapex-up",
+        "title": "AI Capex ↑",
+        "shortLabel": "AI capex ↑",
+        "kind": "sector",
+        "summary": "Hyperscalers reaffirm elevated AI infrastructure spend.",
+        "tree": {
+            "label": "AI capex ↑", "kind": "root", "note": "Hyperscaler capex commitments extended.",
+            "children": [
+                {"label": "Accelerator demand rationed", "kind": "primary", "note": "GPU + packaging supply gates volumes.",
+                 "children": [
+                    {"label": "NVDA DC revenue supports growth", "kind": "market", "note": "Blackwell shipments track packaging capacity.", "affects": ["NVDA"]},
+                    {"label": "TSMC advanced packaging capex ↑", "kind": "market", "note": "Second-order supplier beneficiary.", "affects": []},
+                 ]},
+                {"label": "Power grid becomes binding", "kind": "primary", "note": "Datacenter power availability now the primary constraint.",
+                 "children": [
+                    {"label": "Utility interconnect timelines stretch", "kind": "market", "note": "Site selection tilts to power-rich geographies.", "affects": []},
+                 ]},
+                {"label": "Custom silicon gains inference share", "kind": "primary", "note": "Hyperscaler chips move to production.",
+                 "children": [
+                    {"label": "NVDA inference moat narrows", "kind": "market", "note": "Training moat remains, inference share erodes.", "affects": ["NVDA"]},
+                 ]},
+            ],
+        },
+    },
+]
