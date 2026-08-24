@@ -17,8 +17,8 @@ from datetime import datetime, timezone
 
 from seed import (
     COMPANIES, MARKET_INDICES, MARKET_SIGNALS, TRENDING_TICKERS,
-    INVESTIGATIONS, TIMELINE, NEWS, CURRENCY_BY_COUNTRY,
-    price_history, financials, dependency_map,
+    INVESTIGATIONS, TIMELINE, NEWS, CURRENCY_BY_COUNTRY, RIPPLES,
+    price_history, financials, dependency_map, get_investigations,
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -43,6 +43,9 @@ def _company_summary(c: dict) -> dict:
         "price": c["price"], "change_pct": c["change_pct"], "change_abs": c["change_abs"],
         "market_cap_b": c["market_cap_b"], "pe": c["pe"],
         "revenue_growth_pct": c["revenue_growth_pct"], "eps_ttm": c["eps_ttm"],
+        "revenue_ttm_b": c.get("revenue_ttm_b"),
+        "net_margin": c.get("net_margin"),
+        "net_income_ttm_b": c.get("net_income_ttm_b"),
         "logo_bg": c["logo_bg"], "currency": CURRENCY_BY_COUNTRY.get(c["country"], "$"),
         "recent_event": c["recent_event"],
     }
@@ -87,11 +90,11 @@ async def get_company(ticker: str):
 
 
 @api_router.get("/companies/{ticker}/price-history")
-async def get_price_history(ticker: str):
-    ph = price_history(ticker.upper())
-    if not ph:
+async def get_price_history(ticker: str, range: str = "1Y"):
+    ph = price_history(ticker.upper(), price_range=range)
+    if ph is None:
         raise HTTPException(status_code=404, detail="Company not found")
-    return {"ticker": ticker.upper(), "series": ph, "demo": True}
+    return {"ticker": ticker.upper(), **ph, "demo": True}
 
 
 @api_router.get("/companies/{ticker}/financials")
@@ -103,17 +106,19 @@ async def get_financials(ticker: str):
 
 
 @api_router.get("/companies/{ticker}/investigations")
-async def get_investigations(ticker: str):
-    cards = INVESTIGATIONS.get(ticker.upper(), [])
-    # If no seeded investigations, produce a light heuristic template so the tab is never empty
+async def get_investigations_ep(ticker: str):
+    t = ticker.upper()
+    if not any(c["ticker"] == t for c in COMPANIES):
+        raise HTTPException(status_code=404, detail="Company not found")
+    cards = get_investigations(t)
     if not cards:
-        c = next((c for c in COMPANIES if c["ticker"].lower() == ticker.lower()), None)
-        if not c:
-            raise HTTPException(status_code=404, detail="Company not found")
+        c = next(c for c in COMPANIES if c["ticker"] == t)
         cards = [{
             "category": "General Overview",
             "type": "ai_interpretation",
             "confidence": 55,
+            "impact": "Low",
+            "chain": ["Sector cycle", "Company positioning", "Financial impact", "Investor reaction"],
             "finding": f"{c['name']} operates in {c['industry']}; primary risks stem from {c['sector']} cycle dynamics.",
             "why": "Baseline framing while deeper investigation cards are being generated for this company.",
             "evidence": "Company profile and industry classification.",
@@ -123,7 +128,7 @@ async def get_investigations(ticker: str):
             ],
             "sources": ["Company profile (demo)"]
         }]
-    return {"ticker": ticker.upper(), "items": cards, "demo": True}
+    return {"ticker": t, "items": cards, "demo": True}
 
 
 @api_router.get("/companies/{ticker}/news")
@@ -167,6 +172,19 @@ async def market_trending():
 @api_router.get("/market/signals")
 async def market_signals():
     return {"items": MARKET_SIGNALS, "demo": True}
+
+
+@api_router.get("/ripples")
+async def get_ripples():
+    return {"items": RIPPLES, "demo": True}
+
+
+@api_router.get("/ripples/{ripple_id}")
+async def get_ripple(ripple_id: str):
+    r = next((r for r in RIPPLES if r["id"] == ripple_id), None)
+    if not r:
+        raise HTTPException(status_code=404, detail="Ripple not found")
+    return {"ripple": r, "demo": True}
 
 
 class CompareRequest(BaseModel):

@@ -18,6 +18,8 @@ export const api = {
   getTrending: () => client.get("/market/trending").then((r) => r.data),
   getSignals: () => client.get("/market/signals").then((r) => r.data),
   compare: (tickers) => client.post("/compare", { tickers }).then((r) => r.data),
+  getRipples: () => client.get("/ripples").then((r) => r.data),
+  getRipple: (id) => client.get(`/ripples/${id}`).then((r) => r.data),
   askAssistantURL: () => `${API}/assistant/ask`,
 };
 

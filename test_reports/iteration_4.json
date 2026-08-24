@@ -1,0 +1,50 @@
+{
+  "summary": "Iteration 4 testing: 4 feature additions (financials seed polish, enriched dependency map, /api/ripples, ripple graph + radial dependency SVG UI, assistant markdown table CSS) plus a frontend regression pass. Backend: 46 tests total (37 existing + 9 new in test_iteration4.py) — all passing. Frontend: dependency radial map, ripple graph tabs/nodes/ticker-chips, assistant markdown table (live LLM), navigation, compare and watchlist LocalStorage all verified working. 3 visual/testability defects found (SVG label clipping, SVG <g> click hit-area, assistant table last-column clipped in 460px panel).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/companies/{TCS|HDFCBANK}/dependencies", "issue": "Only 4 dependency nodes seeded (NVDA=9, AAPL=7, RELIANCE=8, TSLA=7). Radial map looks sparse for these two; consider adding 2-3 nodes each for visual parity."},
+      {"endpoint": "/api/companies/{ticker}/dependencies", "issue": "Non-preset companies (18 of 24) fall back to generic 5 nodes ('Key suppliers', 'Key customers'...) with confidence 55-60 and evidence 'Sector reference.' — functional but content-thin."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DependencyMap.jsx", "issue": "Node labels overflow the 520x520 viewBox and are visually clipped: 'Power Grid Capacity' renders as 'er Grid Capacity', 'CUDA Ecosystem' as 'Ecosystem', 'HBM (SK Hynix / Micr…' is cut on the right (measured getBBox x=-29 / right=577 vs viewBox width 520). Fix: widen viewBox (e.g. 760x560) or shrink radius / place labels inside the ring.", "selector": "[data-testid=\"dependency-map-svg\"] text", "priority": "HIGH"},
+      {"component": "AssistantPanel markdown table", "issue": "For a 4-column table the table box measures 442px inside a 419px message container (min-width:110px per cell) so the last column is clipped by the ScrollArea's overflow:hidden and NO horizontal scrollbar appears (table.scrollWidth == clientWidth == 440). Borders/padding/mono-uppercase TH all correct, but content is lost. Fix: wrap the table in a div with overflow-x:auto via a react-markdown component override (table: props => <div className='md-table-wrap'><table .../></div>) and/or reduce cell min-width to ~84px.", "selector": ".assistant-stream table", "priority": "HIGH"},
+      {"component": "DependencyMap.jsx", "issue": "Each node <g> spans circle + far-away label, so the group's bbox centre falls in empty SVG space; a normal Playwright/real click at the group centre is intercepted by the parent <svg> ('svg intercepts pointer events'). Clicking the circle or the text works. Add an invisible hit-area <rect> (fill=transparent, pointer-events=all) covering the group so clicks anywhere in the node are reliable.", "selector": "[data-testid=\"dep-node-N\"]", "priority": "MEDIUM"},
+      {"component": "RippleGraph.jsx", "issue": "Market-column labels overflow their 170px rect (e.g. 'Growth-equity multiples compress', 'Low-income QSR traffic weakens' spill past both rect borders) and two labels are ellipsised ('Enterprise AI RFP cycles elong…', 'Indian unsecured growth modera…'). Widen market rect to ~210px or reduce font-size / wrap onto 2 lines.", "selector": "[data-testid=\"ripple-graph-svg\"] text", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Scenario Lab / Ripple Effects", "issues": ["Default selected node is the 1st-order 'Cost of capital ↑' (selectedKey initialised to '0.0') rather than the root trigger node — the trigger node is never highlighted on load, which reads oddly for a causal-path explainer.", "Node label truncation as above."]},
+      {"screen": "Company > Dependencies", "issues": ["Legend is hidden below md breakpoint and only shows the first 6 of 10 kinds; 'optionality'/'capex'/'technology'/'moat' colours are undocumented (and moat/technology/capex share the same colour #0F172A as supplier, so the legend cannot disambiguate them)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/pytest_iteration4.xml"
+  ],
+  "action_items": [
+    "Fix DependencyMap label clipping (widen viewBox / reduce radius) — labels are currently cut off for NVDA.",
+    "Fix assistant markdown table horizontal overflow: wrap table in an overflow-x:auto div so the 4th column is reachable inside the 460px panel.",
+    "Add a transparent hit-area rect to dep-node groups (and ripple-node groups) so the whole node is clickable.",
+    "Widen RippleGraph market node rects (or wrap text) so labels stay inside their boxes.",
+    "Optional: seed 2-3 more dependency nodes for TCS and HDFCBANK; consider selecting the root node by default in RippleGraph."
+  ],
+  "critical_code_review_comments": [
+    "server.py: routes /ripples and /ripples/{ripple_id} are declared after /companies/{ticker}/... so no ordering conflict — OK. But GET /api/ripples returns the full RIPPLES payload (~9KB) on every render; consider a lightweight list (id/title/shortLabel/kind/summary) plus per-id detail if the list grows.",
+    "DependencyMap.jsx: `placed` useMemo divides by nodes.length — a company with 0 nodes would produce NaN coordinates. Guard with `if (!nodes.length) return []`.",
+    "RippleGraph.jsx: edge highlight uses selected.key.startsWith(e.key) — '0.1' startsWith '0.1' is fine, but keys like '0.10' would falsely match '0.1'. Use a segment-aware comparison before ripple trees grow past 10 children.",
+    "index.css: `.assistant-stream table { display:block; overflow-x:auto; }` does not create a working scroll container because the anonymous table box ignores the block's width — hence the clipped column. Use a wrapper element instead."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration4.py"],
+  "success_rate": {"backend": "100% (46/46 tests)", "frontend": "85% (all functional flows pass; 4 visual/hit-area defects)"},
+  "seed_data_creation": "None — all endpoints are read-only seeded demo data. No test data written.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "N/A — app has no auth; /app/memory/test_credentials.md not required for these flows.",
+  "context_for_next_testing_agent": "Backend regression suite: /app/backend/tests/backend_test.py (companies/market/compare/assistant SSE) + /app/backend/tests/test_iteration4.py (financials derivation, enriched dependency nodes, ripples). Both pass fully against the public URL. Verified frontend: /company/NVDA Dependencies radial SVG (9 nodes, detail panel updates with Relationship/Potential impact/Evidence/Confidence — note inner_text is CSS-uppercased so assert case-insensitively); /scenario-lab 4 sliders + Ripple Effects with 4 tabs, 10 nodes for rates-up (keys: root, 0.N, 0.N.M), ticker chips navigate to /company/{T}; AssistantPanel live LLM markdown table renders (no literal pipes). IMPORTANT test gotchas: (1) click the child `circle`/`rect` inside SVG node groups, not the <g> — the <g> bbox centre is empty space; (2) assistant input submits only via [data-testid=assistant-send] or Cmd/Ctrl+Enter, plain Enter does nothing; (3) '[data-testid*=\"watchlist\"]'.first matches the nav link — use [data-testid=\"watchlist-toggle\"] (localStorage key 'underscope:watchlist').",
+  "rca_of_the_issue": "Assistant table clipping: `.assistant-stream table` uses display:block + overflow-x:auto, but the table's internal anonymous table box sizes to the sum of the cells' min-width (4 x 110px = 440px) which exceeds the 419px message column; the block reports scrollWidth == clientWidth so no scrollbar is generated, and the ScrollArea ancestor (overflow-x:hidden, 459px) clips the last column. DependencyMap clipping: labels are drawn at cx ± (radius+18) = up to 208px from centre with no viewBox headroom, so horizontal labels extend past x=0 and x=520 and are clipped by the SVG viewport."
+}

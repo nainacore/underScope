@@ -284,15 +284,71 @@ def _series(base, drift, vol, n=90):
     return out
 
 
-def price_history(ticker: str):
+# Range → (number of points, days-per-point, drift, vol, x-label formatter kind)
+_RANGE_CONFIG = {
+    "1D": {"n": 78, "dpp": 1 / 78, "drift": -0.00005, "vol": 0.0016, "unit": "hour"},
+    "1W": {"n": 30, "dpp": 7 / 30, "drift": 0.0003, "vol": 0.008, "unit": "day"},
+    "1M": {"n": 30, "dpp": 1, "drift": 0.0009, "vol": 0.012, "unit": "day"},
+    "6M": {"n": 60, "dpp": 3, "drift": 0.0018, "vol": 0.016, "unit": "week"},
+    "1Y": {"n": 60, "dpp": 6, "drift": 0.0028, "vol": 0.018, "unit": "week"},
+    "5Y": {"n": 60, "dpp": 30, "drift": 0.0125, "vol": 0.055, "unit": "month"},
+}
+
+
+def _price_events(ticker: str):
+    """Event markers that map onto the price history — derived from TIMELINE if present."""
+    return TIMELINE.get(ticker, [])
+
+
+def price_history(ticker: str, price_range: str = "1Y"):
     c = next((x for x in COMPANIES if x["ticker"] == ticker), None)
     if not c:
-        return []
-    base = c["price"] * 0.78
-    series = _series(base, drift=0.0028, vol=0.012, n=120)
-    # snap last point to current price
-    series[-1] = c["price"]
-    return series
+        return None
+    cfg = _RANGE_CONFIG.get(price_range.upper(), _RANGE_CONFIG["1Y"])
+    n = cfg["n"]
+    # For 5Y start much lower, for 1D start very near current price
+    if price_range.upper() == "1D":
+        start_factor = 1 - c["change_pct"] / 100.0
+    elif price_range.upper() == "1W":
+        start_factor = 0.97
+    elif price_range.upper() == "1M":
+        start_factor = 0.93
+    elif price_range.upper() == "6M":
+        start_factor = 0.82
+    elif price_range.upper() == "5Y":
+        start_factor = 0.32
+    else:  # 1Y default
+        start_factor = 0.7
+    base = c["price"] * start_factor
+    values = _series(base, drift=cfg["drift"], vol=cfg["vol"], n=n)
+    values[-1] = c["price"]
+
+    # Build ISO date/time labels going backwards from "now" at the configured cadence.
+    from datetime import datetime, timedelta, timezone
+    now = datetime(2025, 2, 3, 16, 0, tzinfo=timezone.utc)
+    unit = cfg["unit"]
+    step_days = cfg["dpp"]
+    points = []
+    for i in range(n):
+        offset_idx = n - 1 - i  # i=0 -> oldest
+        if unit == "hour":
+            dt = now - timedelta(hours=offset_idx * 6.5 / n * n)  # spread across trading day
+        else:
+            dt = now - timedelta(days=offset_idx * step_days)
+        points.append({"t": dt.isoformat(), "v": values[i]})
+
+    # Event markers within the visible range
+    events = []
+    for ev in _price_events(ticker):
+        try:
+            evdt = datetime.fromisoformat(ev["date"]).replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        first_t = datetime.fromisoformat(points[0]["t"])
+        last_t = datetime.fromisoformat(points[-1]["t"])
+        if first_t <= evdt <= last_t:
+            events.append({"date": ev["date"], "title": ev["title"], "type": ev["type"], "importance": ev.get("importance", "medium")})
+    return {"points": points, "events": events, "range": price_range.upper()}
 
 
 # Investigation seed content: 3-5 cards per company.
@@ -440,20 +496,85 @@ INVESTIGATIONS = {
 
 
 # Financials series – annual & quarterly, small realistic-looking numbers.
+# ------------------------- Canonical per-ticker data -------------------------
+# `revenue_ttm_b` and `net_margin` are the two canonical inputs per company.
+# From these + market_cap_b + price we derive net_income, P/E and EPS at module
+# load so every endpoint (Overview / Financials / Compare / Investigation / AI)
+# reads the same consistent numbers. Never hardcode conflicting metrics elsewhere.
+_CANONICAL = {
+    "NVDA": {"revenue_ttm_b": 130.5, "net_margin": 0.53},
+    "AAPL": {"revenue_ttm_b": 391.0, "net_margin": 0.24},
+    "MSFT": {"revenue_ttm_b": 245.0, "net_margin": 0.36},
+    "GOOGL": {"revenue_ttm_b": 339.9, "net_margin": 0.28},
+    "AMZN": {"revenue_ttm_b": 620.0, "net_margin": 0.09},
+    "META": {"revenue_ttm_b": 156.2, "net_margin": 0.35},
+    "NFLX": {"revenue_ttm_b": 38.0, "net_margin": 0.20},
+    "TSLA": {"revenue_ttm_b": 97.0, "net_margin": 0.08},
+    "JPM": {"revenue_ttm_b": 158.0, "net_margin": 0.32},
+    "GS": {"revenue_ttm_b": 51.0, "net_margin": 0.23},
+    "V": {"revenue_ttm_b": 35.9, "net_margin": 0.54},
+    "MA": {"revenue_ttm_b": 27.2, "net_margin": 0.45},
+    "BLK": {"revenue_ttm_b": 20.4, "net_margin": 0.31},
+    "KO": {"revenue_ttm_b": 46.6, "net_margin": 0.23},
+    "MCD": {"revenue_ttm_b": 25.5, "net_margin": 0.32},
+    "WMT": {"revenue_ttm_b": 665.0, "net_margin": 0.03},
+    "JNJ": {"revenue_ttm_b": 88.8, "net_margin": 0.22},
+    "RELIANCE": {"revenue_ttm_b": 108.0, "net_margin": 0.09},   # USD equivalents
+    "TCS": {"revenue_ttm_b": 29.5, "net_margin": 0.19},
+    "TATAMOTORS": {"revenue_ttm_b": 52.0, "net_margin": 0.06},
+    "HDFCBANK": {"revenue_ttm_b": 32.0, "net_margin": 0.29},
+    "ICICIBANK": {"revenue_ttm_b": 22.5, "net_margin": 0.27},
+    "INFY": {"revenue_ttm_b": 18.6, "net_margin": 0.18},
+    "ETERNAL": {"revenue_ttm_b": 2.2, "net_margin": 0.05},
+}
+
+
+def _reconcile_companies():
+    """Force pe & eps_ttm to be internally consistent with market_cap + revenue + margin."""
+    for c in COMPANIES:
+        canon = _CANONICAL.get(c["ticker"])
+        if not canon:
+            continue
+        rev = canon["revenue_ttm_b"]
+        margin = canon["net_margin"]
+        ni = rev * margin
+        if ni > 0 and c["market_cap_b"] > 0:
+            c["pe"] = round(c["market_cap_b"] / ni, 1)
+            # shares_out = market_cap / price ; eps = ni / shares_out
+            shares_out_b = c["market_cap_b"] / c["price"]
+            c["eps_ttm"] = round(ni / max(shares_out_b, 0.001), 2)
+        c["revenue_ttm_b"] = rev
+        c["net_margin"] = margin
+        c["net_income_ttm_b"] = round(ni, 2)
+
+
+# NOTE: _reconcile_companies() is invoked at the bottom of this module (after
+# all seed data is loaded) so every downstream helper sees canonical numbers.
+
+
+# ------------------------- Financials -------------------------
+
 def financials(ticker: str):
-    """Return demo financials: income statement, balance sheet, cash flow."""
+    """Return demo financials anchored on the canonical revenue_ttm_b and back-cast
+    using the seeded revenue growth rate. Every line item is derived, never hardcoded.
+    """
     base = next((c for c in COMPANIES if c["ticker"] == ticker), None)
     if not base:
         return None
-    # scale factor loosely proportional to market cap
-    scale = max(1.0, base["market_cap_b"] / 100.0)
+
+    canon = _CANONICAL.get(ticker, {})
+    rev_ttm = canon.get("revenue_ttm_b") or (base["market_cap_b"] / max(base["pe"], 1.0)) / 0.12
+    net_margin = canon.get("net_margin", 0.12)
+
     years = ["FY21", "FY22", "FY23", "FY24"]
     growth = base["revenue_growth_pct"] / 100.0
-    rev = [round(30 * scale * (1 + growth) ** (i - 3), 1) for i in range(4)]
-    gross = [round(r * 0.55, 1) for r in rev]
-    op = [round(r * 0.28, 1) for r in rev]
-    net = [round(r * 0.22, 1) for r in rev]
-    eps = [round(base["eps_ttm"] * (1 + growth) ** (i - 3), 2) for i in range(4)]
+    rev = [round(rev_ttm / ((1 + growth) ** (3 - i)), 1) for i in range(4)]
+    gross_margin = 0.55 if base["sector"] not in {"Banking", "Financial Services"} else 0.65
+    op_margin = min(0.42, max(net_margin + 0.05, 0.10))
+    gross = [round(r * gross_margin, 1) for r in rev]
+    op = [round(r * op_margin, 1) for r in rev]
+    net = [round(r * net_margin, 1) for r in rev]
+    eps = [round(base["eps_ttm"] / ((1 + growth) ** (3 - i)), 2) for i in range(4)]
 
     bs = {
         "cash": [round(rev[i] * 0.35, 1) for i in range(4)],
@@ -462,9 +583,9 @@ def financials(ticker: str):
         "liabilities": [round(rev[i] * 0.9, 1) for i in range(4)],
     }
     cf = {
-        "operating": [round(rev[i] * 0.30, 1) for i in range(4)],
-        "capex": [round(-rev[i] * 0.10, 1) for i in range(4)],
-        "fcf": [round(rev[i] * 0.20, 1) for i in range(4)],
+        "operating": [round(net[i] * 1.30, 1) for i in range(4)],
+        "capex": [round(-rev[i] * 0.08, 1) for i in range(4)],
+        "fcf": [round(net[i] * 1.30 - rev[i] * 0.08, 1) for i in range(4)],
     }
     return {
         "years": years,
@@ -545,6 +666,45 @@ NEWS = {
 }
 
 
+# Map raw dependency `kind` -> UI-facing category label used across the app.
+_KIND_TO_CATEGORY = {
+    "supplier": "Critical Dependency",
+    "capex": "Critical Dependency",
+    "customer": "Strategic Dependency",
+    "moat": "Strategic Dependency",
+    "technology": "Strategic Dependency",
+    "optionality": "Strategic Dependency",
+    "regulation": "External Risk",
+    "macro": "External Risk",
+    "commodity": "External Risk",
+    "competitor": "Competitive Force",
+}
+
+# Directional & timing defaults keyed by dependency kind (can be overridden per-node in presets).
+_KIND_DEFAULTS = {
+    "supplier":   {"impact_direction": "negative", "time_horizon": "near-term",   "what_to_watch": "Capacity announcements and lead-time commentary."},
+    "capex":      {"impact_direction": "mixed",    "time_horizon": "long-term",   "what_to_watch": "Project milestones and ROIC updates."},
+    "customer":   {"impact_direction": "mixed",    "time_horizon": "near-term",   "what_to_watch": "Customer capex guidance and RFP commentary."},
+    "moat":       {"impact_direction": "positive", "time_horizon": "long-term",   "what_to_watch": "Ecosystem retention, developer / partner health metrics."},
+    "technology": {"impact_direction": "mixed",    "time_horizon": "medium-term", "what_to_watch": "Adoption metrics of alternative tooling."},
+    "optionality":{"impact_direction": "positive", "time_horizon": "long-term",   "what_to_watch": "Milestones that convert optionality into realised revenue."},
+    "regulation": {"impact_direction": "negative", "time_horizon": "medium-term", "what_to_watch": "Draft rules, hearings and enforcement actions."},
+    "macro":      {"impact_direction": "mixed",    "time_horizon": "near-term",   "what_to_watch": "Central-bank commentary and macro prints."},
+    "commodity":  {"impact_direction": "mixed",    "time_horizon": "near-term",   "what_to_watch": "Benchmark price movements and inventory data."},
+    "competitor": {"impact_direction": "negative", "time_horizon": "medium-term", "what_to_watch": "Share, pricing and win-rate disclosures."},
+}
+
+
+def _enrich_dep_node(node):
+    kind = node.get("kind", "customer")
+    defaults = _KIND_DEFAULTS.get(kind, _KIND_DEFAULTS["customer"])
+    return {
+        **defaults,
+        **node,
+        "category": _KIND_TO_CATEGORY.get(kind, "Strategic Dependency"),
+    }
+
+
 def dependency_map(ticker: str):
     """Rich dependency map: center + typed nodes with relationship, impact, confidence, evidence."""
     presets = {
@@ -612,7 +772,12 @@ def dependency_map(ticker: str):
             {"label": "Regulators", "kind": "regulation", "relationship": "Primary regulators for " + center["sector"], "impact": "Regulatory shocks reshape mix.", "confidence": 55, "evidence": "Sector reference."},
             {"label": "Macro factors", "kind": "macro", "relationship": "Currency, rates, commodities", "impact": "Second-order sensitivity via inputs and demand.", "confidence": 55, "evidence": "Sector reference."},
         ]
-    return {"center": center["name"], "ticker": center["ticker"], "sector": center["sector"], "nodes": nodes}
+    return {
+        "center": center["name"],
+        "ticker": center["ticker"],
+        "sector": center["sector"],
+        "nodes": [_enrich_dep_node(n) for n in nodes],
+    }
 
 
 # ------------------------- Ripple Effects -------------------------
@@ -733,3 +898,38 @@ RIPPLES = [
         },
     },
 ]
+
+
+# ------------------------- Investigation enrichment -------------------------
+# Add `chain` (concrete causal chain) and `impact` (High/Medium/Low) via a small
+# per-category default table and a few explicit per-ticker overrides. Every card
+# ends up with the same shape without editing 30+ literals by hand.
+
+_INVESTIGATION_DEFAULTS = {
+    "Concentration Risk":   {"impact": "High",   "chain": ["Customer/supplier concentration", "Single-buyer decision", "Order-book slippage", "Consensus revenue reset"]},
+    "Supply Chain Exposure":{"impact": "High",   "chain": ["Critical supplier disruption", "Component gate", "Shipment delay", "Revenue miss"]},
+    "Valuation Tension":    {"impact": "Medium", "chain": ["Consensus embeds current trajectory", "Growth normalises", "Multiple compresses", "Total return underwhelms"]},
+    "Competitive Pressure": {"impact": "Medium", "chain": ["Competitor product / pricing move", "Share shifts", "Mix / ASP pressure", "Margin compression"]},
+    "Macro Sensitivity":    {"impact": "Medium", "chain": ["Macro variable moves", "Cost / demand adjust", "Segment margin flexes", "Consolidated EPS reset"]},
+    "Contradictions":       {"impact": "Medium", "chain": ["Management framing vs disclosure", "Optionality priced in", "Reality lags narrative", "Multiple compresses"]},
+    "Capital Allocation":   {"impact": "Medium", "chain": ["Capex commitment", "Free-cash-flow drag", "Balance-sheet capacity absorbed", "Deleveraging deferred"]},
+    "Regulatory Exposure":  {"impact": "High",   "chain": ["Rule / enforcement action", "Business-model line item impacted", "Take-rate or mix compresses", "Segment EBIT reset"]},
+    "Currency Sensitivity": {"impact": "Medium", "chain": ["USD/INR moves", "Reported translation impact", "Constant-currency growth diverges", "Optical growth flexes"]},
+    "Margin Pressure":      {"impact": "Medium", "chain": ["Pricing / mix pressure", "Gross margin compression", "Operating leverage flattens", "EPS growth decelerates"]},
+    "General Overview":     {"impact": "Low",    "chain": ["Sector cycle", "Company positioning", "Financial impact", "Investor reaction"]},
+}
+
+
+def _enrich_investigation(card):
+    defaults = _INVESTIGATION_DEFAULTS.get(card.get("category"), _INVESTIGATION_DEFAULTS["General Overview"])
+    return {**defaults, **card}
+
+
+def get_investigations(ticker: str):
+    """Return enriched investigation cards for a ticker."""
+    cards = INVESTIGATIONS.get(ticker.upper(), [])
+    return [_enrich_investigation(c) for c in cards]
+
+
+# ------------------------- Reconciliation on import -------------------------
+_reconcile_companies()

@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 6 frontend-only re-verification of the two remaining visual fixes. (1) AssistantPanel markdown table: FIXED. Asked the analyst for a 6-column table on /company/NVDA; measured .assistant-stream .md-table-wrap -> computed overflow-x = 'auto', scrollWidth 540 > clientWidth 403, getBoundingClientRect().right = 1900 <= window.innerWidth 1920, and the Radix ScrollArea inner wrapper now computes display:block, min-width:0px, width 459px (was display:table/min-width:100%). Setting wrap.scrollLeft = scrollWidth (max 137) brings the previously clipped last column ('Market Cap') fully into view (overflow past the wrap right edge went 136px -> -1px). The trailing 'Note:' paragraph also wraps inside the panel. (2) DependencyMap node click: FIXED. Playwright's default .click() (element bbox centre) now succeeds on ALL 9 nodes including the requested dep-node-0/2/4/7, and each click updates [data-testid=dep-detail-panel] with the matching label/relationship/impact/evidence/confidence (9/9 MATCH). Regression: RippleGraph default selection is the root TRIGGER 'Interest rates up', leaf-node click exposes 3 ripple-affects chips, ripple-affects-NVDA navigates to /company/NVDA and the company page (tabs, header, chart) renders. Zero console/page errors across all three test runs.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Company > Dependencies (DependencyMap)", "issues": ["The new invisible hit <rect> is also the focus/selection region, so the selected node renders a hard black rectangular outline around dot+label (e.g. 'AMD / Custom Silicon'), which reads as a stray box rather than a focus ring. Consider a rounded/soft focus style (outline via CSS on :focus-visible only) - cosmetic, non-blocking."]},
+      {"screen": "Compare page (carried over from iteration 5, not re-tested)", "issues": ["'Add company' still uses a native <select> (data-testid=compare-picker) instead of the shadcn Select component"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_6.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The [data-radix-scroll-area-viewport] > div override in index.css is global; it will apply to every ScrollArea in the app. Verified no regression on the assistant panel, but if any other ScrollArea relies on horizontal content sizing (display:table) it will now clip - scope the rule to the assistant panel (e.g. .assistant-stream [data-radix-scroll-area-viewport] > div) to be safe.",
+    "DependencyMap hit-rect width is estimated from label.length * 6.8px; this is font-metric guesswork. Works for the current 22-char truncation but could under/over-shoot with a different font. Using getBBox() of the label text node after mount would be exact."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% - 2/2 targeted fixes verified, 4/4 regression checks pass"},
+  "seed_data_creation": "None. One assistant conversation was created on /company/NVDA (transient, not persisted state changes made).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both iteration-5 blockers are closed. Assistant table verification recipe: open assistant via [data-testid=open-assistant], send a 6-column table prompt, poll for '.assistant-stream .md-table-wrap' (~5s), then page.evaluate to check overflowX/scrollWidth/clientWidth/rect.right and set scrollLeft=scrollWidth to prove the last column is reachable. DependencyMap: plain locator.click() on [data-testid=dep-node-i] now works for all 9 nodes; verify against [data-testid='dep-detail-panel'] h4. RippleGraph: ripple-affects-* chips only render when a LEAF node (data-testid ripple-node-0.x.y) is selected, not for root/1st-order nodes - that appears to be by design.",
+  "rca_of_the_issue": "Both fixes address the iteration-5 root causes correctly. (1) Forcing the Radix ScrollArea content wrapper to display:block/min-width:0/max-width:100% makes it a fixed-width (459px) block, so .md-table-wrap is constrained to the panel and its own overflow-x:auto establishes a scroll container (scrollWidth 540 vs clientWidth 403). (2) Replacing the r=30 dot-centred circle with a rect spanning the union of dot and offset label puts the <g> bbox geometric centre inside an interactive child, so default centre-clicks no longer fall through to the parent <svg>."
+}

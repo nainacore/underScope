@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { PriceChart } from "@/components/PriceChart";
 import { InvestigationCard } from "@/components/InvestigationCard";
+import { DependencyMap } from "@/components/DependencyMap";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { Star, Sparkles, Building, Users, Calendar as CalendarIcon } from "lucide-react";
 
@@ -105,36 +106,7 @@ const ScenarioTab = ({ ticker, company }) => {
 
 const DependenciesTab = ({ deps }) => {
   if (!deps) return null;
-  return (
-    <div className="border border-slate-200 bg-white p-6">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <div className="text-[10px] tracking-widest uppercase text-slate-500 font-mono-num">Ripple map</div>
-          <h3 className="font-editorial text-2xl text-slate-900 mt-1">{deps.center}</h3>
-        </div>
-        <span className="text-xs text-slate-500">Click a node to inspect the relationship</span>
-      </div>
-      <div className="mt-6 grid md:grid-cols-2 gap-3">
-        {deps.nodes.map((n, i) => (
-          <details key={i} className="group border border-slate-200 bg-slate-50 open:bg-white" data-testid={`dependency-node-${i}`}>
-            <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between hover:bg-white" data-testid={`dependency-node-summary-${i}`}>
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 border border-slate-900 grid place-items-center text-[10px] font-mono-num text-slate-900">{String(i + 1).padStart(2, "0")}</span>
-                <span className="text-sm text-slate-900">{n.label}</span>
-              </div>
-              <span className="text-slate-400 group-open:rotate-90 transition-transform">→</span>
-            </summary>
-            <div className="px-4 py-3 border-t border-slate-200 text-[12px] text-slate-600 leading-relaxed">
-              {n.note || "Relationship detail available on request."}
-              <div className="mt-2">
-                <Badge className="bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-mono-num uppercase">Relationship</Badge>
-              </div>
-            </div>
-          </details>
-        ))}
-      </div>
-    </div>
-  );
+  return <DependencyMap data={deps} />;
 };
 
 const FinancialsTab = ({ fin }) => {

@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RippleGraph } from "@/components/RippleGraph";
 
 const scenarios = [
   { id: "rates", label: "Fed rate change (bps)", min: -200, max: 200, step: 25, default: 0, affects: "Banks, growth equities, USD flows" },
@@ -11,17 +12,30 @@ const scenarios = [
   { id: "aicapex", label: "AI capex growth (%)", min: -30, max: 60, step: 1, default: 40, affects: "NVIDIA, hyperscalers, semiconductor supply chain" },
 ];
 
-export default function ScenarioLab() {
-  const [companies, setCompanies] = useState([]);
-  const [values, setValues] = useState(Object.fromEntries(scenarios.map((s) => [s.id, s.default])));
+// Which ripple corresponds to each slider's direction
+const RIPPLE_FOR_SLIDER = {
+  rates: (v, d) => (v > d ? "rates-up" : null),
+  oil: (v, d) => (v > d ? "oil-up" : null),
+  usdinr: (v, d) => (v > d ? "usdinr-up" : null),
+  aicapex: (v, d) => (v > d ? "aicapex-up" : null),
+};
 
-  useEffect(() => { api.listCompanies().then((r) => setCompanies(r.items || [])); }, []);
+export default function ScenarioLab() {
+  const [values, setValues] = useState(Object.fromEntries(scenarios.map((s) => [s.id, s.default])));
+  const [ripples, setRipples] = useState([]);
+  const [selectedRippleId, setSelectedRippleId] = useState("rates-up");
+
+  useEffect(() => {
+    api.getRipples().then((r) => {
+      setRipples(r.items || []);
+      if (r.items?.length) setSelectedRippleId(r.items[0].id);
+    });
+  }, []);
 
   const impact = () => {
     const arr = [];
-    // Simple deterministic sensitivity model for demo
-    if (values.aicapex >= 40) arr.push({ t: "NVDA", pos: true, note: `AI capex above ${values.aicapex}% supports data-center growth.` });
-    if (values.aicapex < 15) arr.push({ t: "NVDA", pos: false, note: `AI capex below ${values.aicapex}% would reset consensus revenue trajectory.` });
+    if (values.aicapex >= 40) arr.push({ t: "NVDA", pos: true, note: `AI capex at ${values.aicapex}% supports data-center growth.` });
+    if (values.aicapex < 15) arr.push({ t: "NVDA", pos: false, note: `AI capex at ${values.aicapex}% would reset consensus revenue trajectory.` });
     if (values.rates > 50) arr.push({ t: "JPM", pos: true, note: "Higher rates modestly support NII on floating-rate books." });
     if (values.rates > 100) arr.push({ t: "TSLA", pos: false, note: "Higher rates elongate enterprise & consumer auto decision cycles." });
     if (values.oil > 90) arr.push({ t: "RELIANCE", pos: true, note: "Higher crude improves O2C realisations." });
@@ -32,20 +46,33 @@ export default function ScenarioLab() {
   };
 
   const affected = impact();
+  const activeRipples = new Set(
+    scenarios
+      .map((s) => {
+        const defaultV = s.default;
+        return RIPPLE_FOR_SLIDER[s.id]?.(values[s.id], defaultV);
+      })
+      .filter(Boolean)
+  );
+
+  const selectedRipple = ripples.find((r) => r.id === selectedRippleId);
 
   return (
-    <div className="grid lg:grid-cols-[1fr_360px] gap-6 max-w-[1400px]">
-      <div className="space-y-6">
-        <div>
-          <div className="text-[10px] tracking-widest uppercase text-slate-500 font-mono-num">Sandbox</div>
-          <h1 className="font-editorial text-3xl md:text-4xl text-slate-900 mt-1">Scenario Lab</h1>
-          <p className="text-sm text-slate-600 mt-2 max-w-2xl">
-            Change macro assumptions and see which companies could be second-order affected.
-            Not a price prediction.
-          </p>
-        </div>
+    <div className="space-y-10 max-w-[1400px]">
+      <div>
+        <div className="text-[10px] tracking-widest uppercase text-slate-500 font-mono-num">Sandbox</div>
+        <h1 className="font-editorial text-3xl md:text-4xl text-slate-900 mt-1">Scenario Lab</h1>
+        <p className="text-sm text-slate-600 mt-2 max-w-2xl">
+          Change macro assumptions and see which companies could be second-order affected. Not a price prediction.
+        </p>
+      </div>
 
+      <section className="grid lg:grid-cols-[1fr_360px] gap-6">
         <div className="border border-slate-200 bg-white p-6 space-y-8">
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-slate-500 font-mono-num">Assumptions</div>
+            <h2 className="font-editorial text-2xl text-slate-900 mt-1">Move the world</h2>
+          </div>
           {scenarios.map((s) => (
             <div key={s.id}>
               <div className="flex items-center justify-between mb-2">
@@ -72,11 +99,9 @@ export default function ScenarioLab() {
             </Button>
           </div>
         </div>
-      </div>
 
-      <div className="space-y-4">
         <div className="border border-slate-200 bg-white p-6">
-          <div className="text-[10px] tracking-widest uppercase text-slate-500 font-mono-num">Ripple effects</div>
+          <div className="text-[10px] tracking-widest uppercase text-slate-500 font-mono-num">Direct impact</div>
           <h3 className="font-editorial text-xl text-slate-900 mt-1">Companies likely affected</h3>
           <div className="mt-4 space-y-3">
             {affected.length === 0 && <p className="text-sm text-slate-500">Current assumptions are near the base case. Move a slider to explore ripple effects.</p>}
@@ -89,7 +114,35 @@ export default function ScenarioLab() {
           </div>
           <Badge className="mt-5 bg-amber-50 text-amber-700 border border-amber-200 font-mono-num text-[10px] uppercase">Scenario Assumption</Badge>
         </div>
-      </div>
+      </section>
+
+      <section>
+        <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <div className="text-[10px] tracking-widest uppercase text-slate-500 font-mono-num">Second-order</div>
+            <h2 className="font-editorial text-2xl md:text-3xl text-slate-900">Ripple Effects</h2>
+            <p className="text-sm text-slate-600 max-w-2xl mt-1">If one macro variable moves, what could be affected — down two more steps?</p>
+          </div>
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Ripple scenario">
+            {ripples.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => setSelectedRippleId(r.id)}
+                className={`text-xs px-3 py-1.5 border font-mono-num tracking-wide ${
+                  selectedRippleId === r.id
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-900"
+                } ${activeRipples.has(r.id) && selectedRippleId !== r.id ? "border-slate-900" : ""}`}
+                data-testid={`ripple-tab-${r.id}`}
+              >
+                {r.shortLabel}
+                {activeRipples.has(r.id) && selectedRippleId !== r.id ? <span className="ml-1.5 text-emerald-700">•</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+        {selectedRipple ? <RippleGraph ripple={selectedRipple} /> : <div className="text-sm text-slate-500">Loading…</div>}
+      </section>
     </div>
   );
 }

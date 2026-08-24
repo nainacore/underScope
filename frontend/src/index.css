@@ -163,22 +163,60 @@ a {
     color: hsl(215 16% 40%);
     margin: 0.4rem 0;
 }
-.assistant-stream table {
-    border-collapse: collapse;
-    margin: 0.5rem 0;
-    font-size: 0.85em;
+/* Constrain Radix ScrollArea viewport so wide content (markdown tables) triggers
+ * horizontal scroll on the inner wrapper instead of stretching the panel.
+ */
+[data-radix-scroll-area-viewport] > div {
+    display: block !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.assistant-stream .md-table-wrap {
     width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 0.6rem 0;
+    border: 1px solid hsl(var(--border));
+}
+.assistant-stream table {
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0;
+    font-size: 0.8em;
+    width: auto;
+    min-width: 100%;
+    display: table;
+}
+.assistant-stream thead {
+    background: hsl(210 20% 96%);
 }
 .assistant-stream th,
 .assistant-stream td {
-    border: 1px solid hsl(var(--border));
-    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+    border-right: 1px solid hsl(var(--border));
+    padding: 0.45rem 0.6rem;
     text-align: left;
     vertical-align: top;
+    white-space: normal;
+    word-break: break-word;
+    min-width: 90px;
+}
+.assistant-stream th:last-child,
+.assistant-stream td:last-child {
+    border-right: none;
+}
+.assistant-stream tr:last-child td {
+    border-bottom: none;
 }
 .assistant-stream th {
-    background: hsl(210 20% 96%);
     font-weight: 600;
+    color: hsl(var(--foreground));
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 .assistant-stream a {
     color: hsl(var(--foreground));

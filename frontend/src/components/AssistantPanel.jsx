@@ -18,6 +18,14 @@ const getSession = () => {
   return s;
 };
 
+const MD_COMPONENTS = {
+  table: (props) => (
+    <div className="md-table-wrap">
+      <table {...props} />
+    </div>
+  ),
+};
+
 const SUGGESTED = [
   "What are the biggest dependencies?",
   "What changed in the last two earnings?",
@@ -142,7 +150,7 @@ export const AssistantPanel = ({ open, onClose, ticker, companyName }) => {
               </div>
               <div className={`text-sm text-slate-800 leading-relaxed assistant-stream ${m.role === "user" ? "whitespace-pre-wrap" : ""}`}>
                 {m.role === "assistant" && m.text ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{m.text}</ReactMarkdown>
                 ) : (
                   m.text || (streaming && i === messages.length - 1 ? "…" : "")
                 )}

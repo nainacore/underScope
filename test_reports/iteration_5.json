@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 5 frontend-only re-verification of the 4 visual fixes. DependencyMap label clipping: FIXED (all 9 labels inside 720x600 viewBox). DependencyMap node click: PARTIAL - clicking the node dot/hit-circle selects correctly for all 9 nodes, but Playwright's default .click() on <g data-testid='dep-node-i'> still fails for 8/9 off-axis nodes because the group bbox includes the offset label, so the bbox centre lands in transparent space and the parent <svg> intercepts. RippleGraph: FIXED (default selection = root trigger 'Interest rates up', no market label overflows the 230x52 rects, affects chips work and navigate to /company/{TICKER}). AssistantPanel markdown table: NOT FIXED - the last column is still permanently clipped (no scrollbar). Regression: all 9 sidebar routes, 8 company tabs, watchlist toggle, compare add/remove and scenario sliders work; zero console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AssistantPanel / .md-table-wrap", "issue": "4+ column markdown table still clips its last column with no way to scroll. Measured: .md-table-wrap width=452 but positioned left=1495 right=1947 while viewport right edge = 1920 (panel is 460px, ends at 1920). wrap.scrollWidth (450) == wrap.clientWidth (450) so overflow-x:auto never produces a scrollbar. The only horizontally scrollable ancestor is the Radix ScrollArea viewport (scrollWidth 506 vs clientWidth 459) and its overflow-x is 'hidden', so the user can never reach the last column. Assistant paragraph text after the table is also clipped at the window edge.", "selector": ".assistant-stream .md-table-wrap", "priority": "HIGH"},
+      {"component": "DependencyMap", "issue": "Invisible r=30 hit circle only covers the node dot, not the label. Playwright's default click (centre of the <g> bounding box, which includes the label) is intercepted by the parent <svg> for nodes 1-8 (dist from bbox centre to hit-circle centre 48-70px vs r=41px). Clicking the visible dot works for all 9 nodes and updates relationship/impact/evidence/confidence. Testability/large-target UX gap only.", "selector": "[data-testid='dep-node-2']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Compare page", "issues": ["'Add company' uses a native browser <select> (data-testid='compare-picker', 23 options) instead of the shadcn Select component - inconsistent with the rest of the design system"]},
+      {"screen": "DependencyMap / RippleGraph", "issues": ["Labels are still hard-truncated with ellipsis ('HBM (SK Hynix / Micr...' at 22 chars, ripple primary 'Deposit repricing benefits b...' at 30 chars) - by design but the full text is only visible in the detail panel"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_5.json"],
+  "action_items": [
+    "Fix assistant table overflow: the Radix ScrollArea inner viewport div has computed 'display: table; min-width: 100%', so it sizes to content (506px) instead of the 459px panel, pushing .md-table-wrap past the window edge and defeating overflow-x:auto. Add CSS e.g. [data-radix-scroll-area-viewport] > div { display: block !important; min-width: 0 !important; width: 100% !important; } plus .md-table-wrap { max-width: 100%; } (or replace ScrollArea with a plain overflow-y-auto div). Re-verify wrap.scrollWidth > clientWidth and that the last column becomes reachable by scrolling.",
+    "DependencyMap: make the whole node region (dot + label) clickable, e.g. render a transparent <rect> covering the union of dot and label bbox, or remove pointerEvents='none' from the label <text> and keep it inside the <g>."
+  ],
+  "critical_code_review_comments": [
+    "AssistantPanel: wrapping <table> in a div with overflow-x:auto is insufficient while the ancestor Radix ScrollArea viewport uses display:table/min-width:100% - the wrapper grows with content instead of clipping, so the scroll container is never established.",
+    "DependencyMap: hit-area geometry should be derived from the union of the node circle and its label rather than a fixed r=30 circle around the dot."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "5/7 fixes/flows fully verified (71%) - assistant table fix failed, dep-node centre click partial"},
+  "seed_data_creation": "None. Watchlist add/remove and compare add/remove were exercised and reverted to the original state (2 compare items).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Measure the assistant table via page.evaluate on '.assistant-stream .md-table-wrap': assert getComputedStyle(wrap).overflowX==='auto', wrap.scrollWidth > wrap.clientWidth and wrap.getBoundingClientRect().right <= window.innerWidth. Ask the analyst for a 5-6 column table (the LLM often adds a 'Data Type' column, making it 6 wide). For DependencyMap, do NOT use locator.click() on the <g> - it fails by design; scroll the SVG into view first, then compute the hit circle centre with getBoundingClientRect and use page.mouse.click (measurement before scrolling gives stale coordinates and false failures). RippleGraph testids: ripple-node-root, ripple-node-0.<pi>, ripple-node-0.<pi>.<li>; ripple-affects-<TICKER>.",
+  "rca_of_the_issue": "Assistant table clipping: Radix ScrollArea renders its content wrapper with 'display: table; min-width: 100%', which is a shrink-to-fit/grow-to-content box. The new .md-table-wrap therefore expands to the table's intrinsic width (506px chain) instead of being constrained to the 459px viewport, so its own scrollWidth equals clientWidth and overflow-x:auto never activates; the overflowing region is hidden by the ScrollArea viewport (overflow-x: hidden) and is unreachable. DependencyMap: the invisible r=30 circle is centred on the dot while the <g> bounding box is stretched by the offset label, so the element's geometric centre falls outside every interactive child and hits the parent <svg>."
+}
